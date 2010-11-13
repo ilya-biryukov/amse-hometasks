@@ -1,18 +1,18 @@
 #include <fstream>
 #include "utils.h"
+#include "largeint.h"
 
-double eval_expr(double n1, double n2, char op)
+void eval_expr(LargeInteger & n1, LargeInteger & n2, char op)
 {
     if (op == '+')
-        return n1 + n2;
-    if (op == '-')
-        return n1 - n2;
-    if (op == '*')
-        return n1 * n2;
-    if (op == '/')
-        return n1 / n2;
-
-    return n1;
+        n1.add(n2);
+    //if (op == '-')
+    //    return n1 - n2;
+    //if (op == '*')
+    //    return n1 * n2;
+    //if (op == '/')
+    //    return n1 / n2;
+    //return n1;
 }
 
 void proccess_files(char * input_filename, char * output_filename)
@@ -26,13 +26,24 @@ void proccess_files(char * input_filename, char * output_filename)
 
     while (line_count)
     {
-        double n1;
-        double n2;
+	std::string s1;
+	std::string s2;
         char   op;
 
-        input_stream >> n1 >> op >> n2;
+        input_stream >> s1 >> op >> s2;
 
-        output_stream << eval_expr(n1, n2, op) << "\n";
+	LargeInteger n1;
+	LargeInteger n2;
+
+	n1.from_string(s1.c_str());
+	n2.from_string(s2.c_str());
+	eval_expr(n1, n2, op);
+
+	char * s = n1.to_string();
+
+        output_stream << s << "\n";
+	
+	delete [] s;
 
         --line_count;
     }

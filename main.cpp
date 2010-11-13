@@ -1,6 +1,8 @@
 #include <iostream>
 #include <fstream>
+#include <cstring>
 #include "utils.h"
+#include "largeint.h"
 
 int main(int argc, char ** argv)
 {
