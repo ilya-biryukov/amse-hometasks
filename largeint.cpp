@@ -3,16 +3,36 @@
 #include "largeint.h"
 
 LargeInteger::LargeInteger()
+    : value_size(0), value_maxsize(1), value(new unsigned int[1])
 {
-    value_size    = 0;
-    value_maxsize = LV_INITSIZE;
-    value   = new unsigned int[LV_INITSIZE];
     *value = 0;
+}
+
+LargeInteger::LargeInteger(const LargeInteger & src)
+    : value(new unsigned int[src.value_maxsize]), value_size(src.value_size),
+    value_maxsize(src.value_maxsize)
+{
+    memcpy(value, src.value, sizeof(*value) * value_maxsize);
+}
+
+LargeInteger & LargeInteger::operator =(const LargeInteger & val)
+{
+    if (this == &val)
+        return *this;
+
+    value_size = val.value_size;
+    value_maxsize = val.value_maxsize;
+    delete [] value;
+
+    value = new unsigned int[value_maxsize];
+    memcpy(value, val.value, sizeof(*value) * value_maxsize);
+
+    return *this;
 }
 
 LargeInteger::~LargeInteger()
 {
-    delete[] value;
+    delete [] value;
 }
 
 void LargeInteger::ensure_size(size_t size)
@@ -43,19 +63,6 @@ void LargeInteger::update_size()
         }
     }
     value_size = 0;
-}
-
-void LargeInteger::print_val()
-{
-    std::cout << "Number :: \n";
-    std::cout << "Max Size -> " << value_maxsize << "\n";
-    std::cout << "Size     -> " << value_size << "\n";
-    for (size_t i = 0; i < value_maxsize; ++i)
-    {
-        std::cout << "Digit " << i << " -> " << value[i] << "\n";
-    }
-
-    std::cout.flush();
 }
 
 void LargeInteger::add(LargeInteger & num)
