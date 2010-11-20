@@ -3,26 +3,31 @@
 
 #include <string>
 
-const unsigned int LV_BASE = 1000000000;
-const size_t LV_DIGITCHARS = 9;
+const int LV_BASE = 10000;
+const size_t LV_DIGITCHARS = 4;
 
-struct LargeInteger
+class LargeInteger
 {
+public:
     explicit LargeInteger();
     LargeInteger(const LargeInteger & src);
     ~LargeInteger();
 
     LargeInteger & operator=(const LargeInteger & val);
 
-    unsigned int *  value;
+    void        add(const LargeInteger & num);
+    void        sub(const LargeInteger & num);
+    void        mul(const LargeInteger & num);
+    std::string to_string();
+    void        from_string(const std::string & str);
+private:
+    int *  value;
     size_t          value_size;
     size_t          value_maxsize;
+    bool            sign_is_plus;
 
-    void    add(LargeInteger & num);
     void    ensure_size(size_t size);
     void    update_size();
-    char *  to_string();
-    void    from_string(const char * str);
 };
 
 #endif //LARGEINT_H
