@@ -5,29 +5,54 @@
 
 const int LV_BASE = 10000;
 const size_t LV_DIGITCHARS = 4;
+const size_t LV_INTSIZE = 3;
 
 class LargeInteger
 {
 public:
     explicit LargeInteger();
     LargeInteger(const LargeInteger & src);
+    LargeInteger(int src);
     ~LargeInteger();
 
-    LargeInteger & operator=(const LargeInteger & val);
+    LargeInteger & operator = (const LargeInteger & val);
 
-    void        add(const LargeInteger & num);
-    void        sub(const LargeInteger & num);
-    void        mul(const LargeInteger & num);
-    std::string to_string();
+    LargeInteger & operator += (const LargeInteger & rhs);
+    LargeInteger & operator -= (const LargeInteger & rhs);
+    LargeInteger & operator *= (const LargeInteger & rhs);
+
+    LargeInteger operator - ();
+
+    std::string to_string() const;
     void        from_string(const std::string & str);
+    void        swap(LargeInteger & val);
+
+    friend bool operator == (const LargeInteger & lhs, const LargeInteger & rhs);
+    friend bool operator < (const LargeInteger & lhs, const LargeInteger & rhs);
 private:
-    int *  value;
-    size_t          value_size;
-    size_t          value_maxsize;
-    bool            sign_is_plus;
+    int *   digits;
+    size_t  digits_size;
+    size_t  digitsarr_size;
+    bool    negative;
 
     void    ensure_size(size_t size);
     void    update_size();
 };
+
+
+LargeInteger  operator + (const LargeInteger & lhs, const LargeInteger & rhs);
+LargeInteger  operator - (const LargeInteger & lhs, const LargeInteger & rhs);
+LargeInteger  operator * (const LargeInteger & lhs, const LargeInteger & rhs);
+
+bool operator == (const LargeInteger & lhs, const LargeInteger & rhs);
+bool operator != (const LargeInteger & lhs, const LargeInteger & rhs);
+
+bool operator < (const LargeInteger & lhs, const LargeInteger & rhs);
+bool operator > (const LargeInteger & lhs, const LargeInteger & rhs);
+bool operator >= (const LargeInteger & lhs, const LargeInteger & rhs);
+bool operator <= (const LargeInteger & lhs, const LargeInteger & rhs);
+
+std::ostream & operator << (std::ostream & lhs, const LargeInteger & rhs);
+std::istream & operator >> (std::istream & lhs, LargeInteger & rhs);
 
 #endif //LARGEINT_H

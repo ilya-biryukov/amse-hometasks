@@ -3,97 +3,128 @@
 #include "largeint.h"
 
 LargeInteger::LargeInteger()
-    :   value(new int[1]),
-        value_size(0),
-        value_maxsize(1),
-        sign_is_plus(true)
+    :   digits(new int[1]),
+        digits_size(0),
+        digitsarr_size(1),
+        negative(false)
 {
-    *value = 0;
+    *digits = 0;
 }
 
 LargeInteger::LargeInteger(const LargeInteger & src)
-    :   value(new int[src.value_maxsize]),
-        value_size(src.value_size),
-        value_maxsize(src.value_maxsize),
-        sign_is_plus(src.sign_is_plus)
+    :   digits(new int[src.digitsarr_size]),
+        digits_size(src.digits_size),
+        digitsarr_size(src.digitsarr_size),
+        negative(src.negative)
 {
-    memcpy(value, src.value, sizeof(*value) * value_maxsize);
+    memcpy(digits, src.digits, sizeof(*digits) * digitsarr_size);
 }
 
-LargeInteger & LargeInteger::operator =(const LargeInteger & val)
+LargeInteger::LargeInteger(int src)
+    :   digits(new int[LV_INTSIZE]),
+        digits_size(0),
+        digitsarr_size(LV_INTSIZE),
+        negative(src < 0)
 {
-    if (this == &val)
-        return *this;
+    if (src < 0)
+        src = -src;
+    int * it = digits;
+    int * it_end = digits + digitsarr_size;
+    while (src)
+    {
+        *it = src % LV_BASE;
 
-    value_size = val.value_size;
-    value_maxsize = val.value_maxsize;
-    sign_is_plus = val.sign_is_plus;
-    delete [] value;
+        src /= LV_BASE;
+        ++it;
+    }
+    while (*it != *it_end)
+    {
+        *it = 0;
+        ++it;
+    }
 
-    value = new int[value_maxsize];
-    memcpy(value, val.value, sizeof(*value) * value_maxsize);
-
-    return *this;
+    update_size();
 }
 
 LargeInteger::~LargeInteger()
 {
-    delete [] value;
+    delete [] digits;
 }
+
+
+LargeInteger & LargeInteger::operator =(const LargeInteger & val)
+{
+    if (this != &val)
+        LargeInteger(val).swap(*this);
+
+    return *this;
+}
+
+void LargeInteger::swap(LargeInteger & val)
+{
+    std::swap(digits, val.digits);
+    std::swap(digits_size, val.digits_size);
+    std::swap(digitsarr_size, val.digitsarr_size);
+    std::swap(negative, val.negative);
+}
+
 
 void LargeInteger::ensure_size(size_t size)
 {
-    if (value_maxsize >= size)
+    if (digitsarr_size >= size)
         return;
 
     int * new_value = new int[size];
-    for (size_t i = 0; i != value_size; ++i)
-        new_value[i] = value[i];
-    for (size_t i = value_size; i != size; ++i)
+    for (size_t i = 0; i != digits_size; ++i)
+        new_value[i] = digits[i];
+    for (size_t i = digits_size; i != size; ++i)
         new_value[i] = 0;
 
-    delete[] value;
+    delete[] digits;
 
-    value = new_value;
-    value_maxsize = size;
+    digits = new_value;
+    digitsarr_size = size;
 }
 
 void LargeInteger::update_size()
 {
-    for (int * p = value + (value_maxsize - 1); p != value - 1; --p)
+    for (int * p = digits + (digitsarr_size - 1); p != digits - 1; --p)
     {
         if (*p != 0)
         {
-            value_size = p - value + 1;
+            digits_size = p - digits + 1;
             return;
         }
     }
-    value_size = 0;
+
+
+    digits_size = 0;
+    negative = false;
 }
 
-void LargeInteger::add(const LargeInteger & num)
+LargeInteger & LargeInteger::operator += (const LargeInteger & rhs)
 {
-    if (num.sign_is_plus != sign_is_plus)
+    if (rhs.negative != negative)
     {
-        sign_is_plus = !sign_is_plus;
-        sub(num);
-        sign_is_plus = !sign_is_plus;
-        return;
+        negative = !negative;
+        *this -= rhs;
+        negative = !negative;
+        return *this;
     }
 
-    size_t size_needed = (num.value_size > value_size) ? num.value_size + 1 :
-                         value_size + 1;
+    size_t size_needed = (rhs.digits_size > digits_size) ? rhs.digits_size + 1 :
+                         digits_size + 1;
     ensure_size(size_needed);
 
     int carry   = 0;
     size_t current_digit = 0;
 
-    while (current_digit < num.value_size)
+    while (current_digit < rhs.digits_size)
     {
-        value[current_digit] += num.value[current_digit] + carry;
-        if (value[current_digit] >= LV_BASE)
+        digits[current_digit] += rhs.digits[current_digit] + carry;
+        if (digits[current_digit] >= LV_BASE)
         {
-            value[current_digit] -= LV_BASE;
+            digits[current_digit] -= LV_BASE;
             carry = 1;
         }
         else
@@ -105,10 +136,10 @@ void LargeInteger::add(const LargeInteger & num)
     }
     while (carry != 0)
     {
-        ++value[current_digit];
-        if (value[current_digit] >= LV_BASE)
+        ++digits[current_digit];
+        if (digits[current_digit] >= LV_BASE)
         {
-            value[current_digit] -= LV_BASE;
+            digits[current_digit] -= LV_BASE;
             carry = 1;
         }
         else
@@ -118,32 +149,34 @@ void LargeInteger::add(const LargeInteger & num)
         ++current_digit;
     }
     update_size();
+
+    return *this;
 }
 
-void LargeInteger::sub(const LargeInteger & num)
+LargeInteger & LargeInteger::operator -= (const LargeInteger & rhs)
 {
-    if (sign_is_plus != num.sign_is_plus)
+    if (negative != rhs.negative)
     {
-        sign_is_plus = !sign_is_plus;
-        add(num);
-        sign_is_plus = !sign_is_plus;
-        return;
+        negative = !negative;
+        *this += rhs;
+        negative = !negative;
+        return *this;
     }
 
-    size_t size_needed = (num.value_size > value_size) ? num.value_size
-        : value_size;
+    size_t size_needed = (rhs.digits_size > digits_size) ? rhs.digits_size
+        : digits_size;
 
     ensure_size(size_needed);
 
     int carry = 0;
     size_t current_digit = 0;
 
-    while (current_digit < num.value_size)
+    while (current_digit < rhs.digits_size)
     {
-        value[current_digit] -= num.value[current_digit] - carry;
-        if (value[current_digit] < 0)
+        digits[current_digit] -= rhs.digits[current_digit] - carry;
+        if (digits[current_digit] < 0)
         {
-            value[current_digit] += LV_BASE;
+            digits[current_digit] += LV_BASE;
             carry = -1;
         }
         else
@@ -156,10 +189,10 @@ void LargeInteger::sub(const LargeInteger & num)
 
     while (carry != 0 && current_digit < size_needed)
     {
-        --value[current_digit];
-        if (value[current_digit] < 0)
+        --digits[current_digit];
+        if (digits[current_digit] < 0)
         {
-            value[current_digit] += LV_BASE;
+            digits[current_digit] += LV_BASE;
             carry = -1;
         }
         else
@@ -172,44 +205,46 @@ void LargeInteger::sub(const LargeInteger & num)
 
     if (carry)
     {
-        value[0] = LV_BASE - value[0];
+        digits[0] = LV_BASE - digits[0];
         for (current_digit = 1; current_digit < size_needed; ++current_digit)
-            value[current_digit] = LV_BASE - value[current_digit] - 1;
-        sign_is_plus = !sign_is_plus;
+            digits[current_digit] = LV_BASE - digits[current_digit] - 1;
+        negative = !negative;
     }
 
     update_size();
+
+    return *this;
 }
 
-void LargeInteger::mul(const LargeInteger & num)
+LargeInteger & LargeInteger::operator *= (const LargeInteger & rhs)
 {
-    sign_is_plus =!(sign_is_plus ^ num.sign_is_plus);
+    negative = (negative != rhs.negative);
 
-    size_t size_needed = num.value_size + value_size;
+    size_t size_needed = rhs.digits_size + digits_size;
     if (size_needed == 0)
     {
-        return;
+        return *this;
     }
 
-    int * new_value = new int[size_needed];
+    int * new_digits = new int[size_needed];
     for (size_t i = 0; i != size_needed; ++i)
     {
-        new_value[i] = 0;
+        new_digits[i] = 0;
     }
 
-    for (size_t i = 0; i != value_size; ++i)
+    for (size_t i = 0; i != digits_size; ++i)
     {
         int carry  = 0;
         int carry2 = 0;
-        for (size_t j = 0; j != num.value_size; ++j)
+        for (size_t j = 0; j != rhs.digits_size; ++j)
         {
-            int tmp = value[i] * num.value[j] + carry;
+            int tmp = digits[i] * rhs.digits[j] + carry;
             carry = tmp / LV_BASE;
-            new_value[i + j] += (tmp % LV_BASE) + carry2;
+            new_digits[i + j] += (tmp % LV_BASE) + carry2;
 
-            if (new_value[i + j] >= LV_BASE)
+            if (new_digits[i + j] >= LV_BASE)
             {
-                new_value[i + j] -= LV_BASE;
+                new_digits[i + j] -= LV_BASE;
                 carry2 = 1;
             }
             else
@@ -219,25 +254,35 @@ void LargeInteger::mul(const LargeInteger & num)
         }
 
         carry += carry2;
-        size_t j = num.value_size;
+        size_t j = rhs.digits_size;
         while (carry)
         {
-            new_value[i + j] += carry;
+            new_digits[i + j] += carry;
 
-            carry = new_value[i + j] / LV_BASE;
-            new_value[i + j] %= LV_BASE;
+            carry = new_digits[i + j] / LV_BASE;
+            new_digits[i + j] %= LV_BASE;
         }
     }
 
-    delete[] value;
-    value = new_value;
-    value_maxsize = size_needed;
+    delete[] digits;
+    digits = new_digits;
+    digitsarr_size = size_needed;
     update_size();
+
+    return *this;
+}
+
+LargeInteger LargeInteger::operator - ()
+{
+    LargeInteger r(*this);
+    r.negative = !negative;
+
+    return r;
 }
 
 void LargeInteger::from_string(const std::string & str)
 {
-    sign_is_plus = (str[0] != '-');
+    negative = (str[0] == '-');
     size_t str_length = str.length();
 
     size_t digits_required = str_length / LV_DIGITCHARS;
@@ -249,11 +294,11 @@ void LargeInteger::from_string(const std::string & str)
     int digit   = 0;
     int ten_pow = 1;
     size_t chars_read = 0;
-    int * value_ptr = value;
+    int * value_ptr = digits;
 
     std::string::const_reverse_iterator rit = str.rbegin();
     std::string::const_reverse_iterator rend = str.rend();
-    if (!sign_is_plus)
+    if (negative)
         --rend;
 
     while (rit != rend)
@@ -276,19 +321,21 @@ void LargeInteger::from_string(const std::string & str)
         ++rit;
     }
     if (chars_read)
+    {
         *value_ptr = digit;
+    }
 
     update_size();
-}\
+}
 
-std::string LargeInteger::to_string()
+std::string LargeInteger::to_string() const
 {
-    if (value_size == 0)
+    if (digits_size == 0)
         return "0";
 
-    size_t str_length = value_size * LV_DIGITCHARS + 1;
+    size_t str_length = digits_size * LV_DIGITCHARS + 1;
 
-    if (!sign_is_plus)
+    if (negative)
         ++str_length;
 
     char * str = new char[str_length];
@@ -296,9 +343,9 @@ std::string LargeInteger::to_string()
     *str_it = '\0';
     --str_it;
 
-    for (size_t i = 0; i < value_size; ++i)
+    for (size_t i = 0; i < digits_size; ++i)
     {
-        int val = value[i];
+        int val = digits[i];
         for (size_t j = 0; j < LV_DIGITCHARS; ++j)
         {
             int digit = val % 10;
@@ -311,13 +358,13 @@ std::string LargeInteger::to_string()
     }
 
     str_it = str;
-    if (!sign_is_plus)
+    if (negative)
         ++str_it;
 
     while (*str_it == '0')
         ++str_it;
 
-    if (!sign_is_plus)
+    if (negative)
     {
         --str_it;
         *str_it = '-';
@@ -327,4 +374,116 @@ std::string LargeInteger::to_string()
     delete [] str;
 
     return res_str;
+}
+
+LargeInteger operator + (const LargeInteger & lhs, const LargeInteger & rhs)
+{
+    return LargeInteger(lhs) += rhs;
+}
+
+LargeInteger operator - (const LargeInteger & lhs, const LargeInteger & rhs)
+{
+    return LargeInteger(lhs) -= rhs;
+}
+
+LargeInteger operator * (const LargeInteger & lhs, const LargeInteger & rhs)
+{
+    return LargeInteger(lhs) *= rhs;
+}
+
+bool operator == (const LargeInteger & lhs, const LargeInteger & rhs)
+{
+    if (lhs.digits_size != rhs.digits_size || lhs.negative != rhs.negative)
+        return false;
+
+    int * p1 = lhs.digits;
+    int * p2 = rhs.digits;
+    int * q1 = lhs.digits + lhs.digits_size;
+
+    while (p1 != q1)
+    {
+        if (*p1 != *p2)
+            return false;
+
+        ++p1;
+        ++p2;
+    }
+
+    return true;
+}
+
+bool operator != (const LargeInteger & lhs, const LargeInteger & rhs)
+{
+    return !(lhs == rhs);
+}
+
+bool operator < (const LargeInteger & lhs, const LargeInteger & rhs)
+{
+    if (lhs.negative && !rhs.negative)
+        return true;
+    if (rhs.negative && !lhs.negative)
+        return false;
+
+    bool abs_less  = false;
+    bool abs_equal = true;
+
+    if (lhs.digits_size < rhs.digits_size)
+    {
+        abs_less = true;
+        abs_equal = false;
+    }
+    else if (lhs.digits_size > rhs.digits_size)
+    {
+        abs_less = false;
+        abs_equal = false;
+    }
+    else
+    {
+        int * p1 = lhs.digits + lhs.digits_size - 1;
+        int * p2 = rhs.digits + rhs.digits_size - 1;
+        while (p1 != lhs.digits - 1)
+        {
+            if (*p1 != *p2)
+            {
+                abs_equal = false;
+                abs_less = *p1 < *p2;
+                break;
+            }
+            --p1;
+            --p2;
+        }
+    }
+
+    return !abs_equal && ((abs_less && !lhs.negative)
+                         || (!abs_less && lhs.negative));
+}
+
+bool operator > (const LargeInteger & lhs, const LargeInteger & rhs)
+{
+    return rhs < lhs;
+}
+
+bool operator >= (const LargeInteger & lhs, const LargeInteger & rhs)
+{
+    return !(lhs < rhs);
+}
+
+bool operator <= (const LargeInteger & lhs, const LargeInteger & rhs)
+{
+    return !(lhs > rhs);
+}
+
+std::ostream & operator << (std::ostream & lhs, const LargeInteger & rhs)
+{
+    lhs << rhs.to_string();
+    return lhs;
+}
+
+std::istream & operator >> (std::istream & lhs, LargeInteger & rhs)
+{
+    std::string str;
+    lhs >> str;
+
+    rhs.from_string(str);
+    return lhs;
 }
