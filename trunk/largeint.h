@@ -30,10 +30,10 @@ public:
     friend bool operator == (const LargeInteger & lhs, const LargeInteger & rhs);
     friend bool operator < (const LargeInteger & lhs, const LargeInteger & rhs);
 private:
-    int *   digits;
-    size_t  digits_size;
-    size_t  digitsarr_size;
-    bool    negative;
+    int *   m_digits;
+    size_t  m_digits_size;
+    size_t  m_digitsarr_size;
+    bool    m_negative;
 
     void    ensure_size(size_t size);
     void    update_size();
