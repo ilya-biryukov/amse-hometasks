@@ -48,6 +48,7 @@ LargeInteger::LargeInteger(int src)
 LargeInteger::~LargeInteger()
 {
     delete [] m_digits;
+    std::cout << "LargeInt freed\n";
 }
 
 
