@@ -1,21 +1,21 @@
 CC = g++
-CFLAGS = -c -Wall
+CFLAGS = -c
 
-all: arithmetics
+all: expressions
 
-arithmetics: main.o utils.o largeint.o sharedptr.o
-	$(CC) main.o utils.o largeint.o sharedptr.o -o arithmetics
+expressions: main.o expression.o utils.o
+	$(CC) main.o expression.o utils.o -o expressions
 
-main.o: main.cpp utils.h largeint.h
+main.o: expression.h utils.h main.cpp
 	$(CC) $(CFLAGS) main.cpp
 
-utils.o: utils.cpp largeint.h
+expression.o: expression.cpp
+	$(CC) $(CFLAGS) expression.cpp
+
+utils.o: expression.h utils.cpp 
 	$(CC) $(CFLAGS) utils.cpp
 
-largeint.o: largeint.cpp largeint.h
-	$(CC) $(CFLAGS) largeint.cpp
-
-sharedptr.o: sharedptr.cpp sharedptr.h
-	$(CC) $(CFLAGS) sharedptr.cpp
-clean:
-	rm -rf *.o arithmetics
+run: expressions
+	./expressions
+clean: 
+	rm -f *.o expressions 
