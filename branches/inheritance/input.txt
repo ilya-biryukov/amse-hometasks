@@ -1,0 +1,6 @@
+5
+x*x*x*x*x int -10 10 0.001
+2-x*x solve 0 3 0.001
+2-x*x solve 3 5 0.001
+10*x*x*x-50 int 0.5 100.5 0.001
+x+x*x+x*x*x solve -5 5 0.001
