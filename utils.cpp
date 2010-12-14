@@ -11,7 +11,7 @@ int getDoubleSign(double x)
         return 1;
 }
 
-double integrate(double a, double b, double eps, const Expression* expr)
+double integrate(double a, double b, double eps, const Function* expr)
 {
     double x = a;
     double res = 0.;
@@ -24,7 +24,7 @@ double integrate(double a, double b, double eps, const Expression* expr)
     return res;
 }
 
-double solve(double a, double b, double eps, const Expression* expr, bool* solved)
+double solve(double a, double b, double eps, const Function* expr, bool* solved)
 {
     if (solved)
         *solved = true;
@@ -69,29 +69,29 @@ double solve(double a, double b, double eps, const Expression* expr, bool* solve
     return a;
 }
 
-const Expression* buildBinaryExpression(const Expression* left, const Expression* right, char op)
+const Function* buildBinaryExpression(const Function* left, const Function* right, char op)
 {
     if (op == '+')
     {
-        return new PlusExpr(left, right);
+        return new Add(left, right);
     }
     else if (op == '-')
     {
-        return new MinusExpr(left, right);
+        return new Subtract(left, right);
     }
     else if (op == '*')
     {
-        return new MulExpr(left, right);
+        return new Multiply(left, right);
     }
     else if (op == '/')
     {
-        return new DivExpr(left, right);
+        return new Divide(left, right);
     }
 
     return 0;
 }
 
-const Expression* buildExpression(const std::string& str)
+const Function* buildExpression(const std::string& str)
 {
     size_t p = str.find_first_of("+-");
     if (p == str.npos)
@@ -99,8 +99,8 @@ const Expression* buildExpression(const std::string& str)
 
     if (p != str.npos)
     {
-        const Expression* left;
-        const Expression* right;
+        const Function* left;
+        const Function* right;
 
         left = buildExpression(str.substr(0, p));
         right = buildExpression(str.substr(p+1));
@@ -115,7 +115,7 @@ const Expression* buildExpression(const std::string& str)
     {
         double n;
         sscanf(str.c_str(), "%lf", &n);
-        return new ConstantExpr(n);
+        return new Constant(n);
     }
 
     return 0;
@@ -137,7 +137,7 @@ void proccessFiles(const std::string& inputFilename,
         string exprStr;
         inStream >> exprStr;
 
-        const Expression* expr = buildExpression(exprStr);
+        const Function* expr = buildExpression(exprStr);
 
         string cmd;
         inStream >> cmd;
@@ -147,7 +147,7 @@ void proccessFiles(const std::string& inputFilename,
         double eps;
         inStream >> a >> b >> eps;
 
-        if (cmd == "solve")
+        if (cmd == "sol")
         {
             bool solved;
             double root = solve(a, b, eps, expr, &solved);

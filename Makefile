@@ -3,16 +3,16 @@ CFLAGS = -c
 
 all: expressions
 
-expressions: main.o expression.o utils.o
-	$(CC) main.o expression.o utils.o -o expressions
+expressions: main.o function.o utils.o
+	$(CC) main.o function.o utils.o -o expressions
 
-main.o: expression.h utils.h main.cpp
+main.o: function.h utils.h main.cpp
 	$(CC) $(CFLAGS) main.cpp
 
-expression.o: expression.cpp
-	$(CC) $(CFLAGS) expression.cpp
+function.o: function.cpp
+	$(CC) $(CFLAGS) function.cpp
 
-utils.o: expression.h utils.cpp 
+utils.o: function.h utils.cpp 
 	$(CC) $(CFLAGS) utils.cpp
 
 run: expressions

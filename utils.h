@@ -2,13 +2,13 @@
 #define UTILS_H
 
 #include <string>
-#include "expression.h"
+#include "function.h"
 
-double solve(double a, double b, double eps, const Expression* expr, bool* solved = 0);
+double solve(double a, double b, double eps, const Function* expr, bool* solved = 0);
 
-double integrate(double a, double b, double eps, const Expression* expr);
+double integrate(double a, double b, double eps, const Function* expr);
 
-const Expression* buildExpression(const std::string& str);
+const Function* buildExpression(const std::string& str);
 
 void proccessFiles(const std::string& inputFilename,
                    const std::string& outputFilename);
