@@ -29,19 +29,33 @@ LargeInteger * ReferenceCounted::get_value()
 }
 
 /* SharedPtr */
-SharedPtr::SharedPtr(LargeInteger * ptr)
-    : m_ref_counted(new ReferenceCounted(ptr))
+SharedPtr::SharedPtr()
+    : m_ref_counted(0)
 { }
+
+SharedPtr::SharedPtr(LargeInteger * ptr)
+{ 
+    if (ptr)
+    {
+	m_ref_counted = new ReferenceCounted(ptr);
+    }
+    else
+    {
+	m_ref_counted = 0;
+    }
+}
 
 SharedPtr::~SharedPtr()
 {
-    m_ref_counted->unref();
+    if (m_ref_counted)
+        m_ref_counted->unref();
 }
 
 SharedPtr::SharedPtr(const SharedPtr& ptr)
     : m_ref_counted(ptr.m_ref_counted)
 {
-    m_ref_counted->ref();
+    if (m_ref_counted)
+        m_ref_counted->ref();
 }
 
 SharedPtr & SharedPtr::operator = (const SharedPtr & rhs)
@@ -61,23 +75,46 @@ void SharedPtr::swap(SharedPtr & ptr)
 
 void SharedPtr::reset(LargeInteger * val)
 {
-    m_ref_counted->unref();
-    m_ref_counted = new ReferenceCounted(val);
+    if (m_ref_counted)
+        m_ref_counted->unref();
+    if (val)
+    {
+        m_ref_counted = new ReferenceCounted(val);
+    }
+    else
+    {
+	m_ref_counted = 0;
+    }
+
 }
 
 LargeInteger * SharedPtr::get_pointer() const
 {
-    return m_ref_counted->get_value();
+    if (m_ref_counted)
+    {
+	return m_ref_counted->get_value();
+    }
+    else
+    {
+	return 0;
+    }
 }
 
 LargeInteger * SharedPtr::operator -> ()
 {
-    return m_ref_counted->get_value();
+    return get_pointer();
 }
 
 LargeInteger & SharedPtr::operator * ()
 {
-    return *m_ref_counted->get_value();
+    if (m_ref_counted)
+    {
+	return *m_ref_counted->get_value();
+    }
+    else
+    {
+	return *((LargeInteger*)(0));
+    }
 }
 
 bool operator < (const LargeInteger * lhs, const SharedPtr & rhs)
