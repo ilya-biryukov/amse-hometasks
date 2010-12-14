@@ -19,6 +19,7 @@ private:
 class SharedPtr
 {
 public:
+    SharedPtr();
     SharedPtr(LargeInteger * ptr);
     SharedPtr(const SharedPtr& ptr);
     ~SharedPtr();
