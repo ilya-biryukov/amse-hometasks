@@ -107,44 +107,7 @@ LargeInteger * SharedPtr::operator -> ()
 
 LargeInteger & SharedPtr::operator * ()
 {
-    if (m_ref_counted)
-    {
-	return *m_ref_counted->get_value();
-    }
-    else
-    {
-	return *((LargeInteger*)(0));
-    }
-}
-
-bool operator < (const LargeInteger * lhs, const SharedPtr & rhs)
-{
-    return lhs < rhs.get_pointer();
-}
-
-bool operator <= (const LargeInteger * lhs, const SharedPtr & rhs)
-{
-    return lhs <= rhs.get_pointer();
-}
-
-bool operator > (const LargeInteger * lhs, const SharedPtr & rhs)
-{
-    return lhs > rhs.get_pointer();
-}
-
-bool operator >=  (const LargeInteger * lhs, const SharedPtr & rhs)
-{
-    return lhs >= rhs.get_pointer();
-}
-
-bool operator == (const LargeInteger * lhs, const SharedPtr & rhs)
-{
-    return lhs == rhs.get_pointer();
-}
-
-bool operator < (const SharedPtr & lhs, const SharedPtr & rhs)
-{
-    return lhs.get_pointer() < rhs.get_pointer();
+    return *get_pointer();
 }
 
 bool operator <= (const SharedPtr & lhs, const SharedPtr & rhs)
