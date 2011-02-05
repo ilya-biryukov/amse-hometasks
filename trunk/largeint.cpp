@@ -1,6 +1,12 @@
 #include <cstring>
 #include <iostream>
+#include <cstdint>
+#include <limits>
+#include <algorithm>
 #include "largeint.h"
+
+const int64_t BASE = static_cast<int64_t>(std::numeric_limits<int32_t>::max()) + 1;
+const size_t DIGIT_DECIMAL_SIZE = 10;
 
 LargeInteger::LargeInteger()
     :   m_digits(0),
@@ -11,7 +17,7 @@ LargeInteger::LargeInteger()
 }
 
 LargeInteger::LargeInteger(const LargeInteger & src)
-    :   m_digits(new int[src.m_digitsarr_size]),
+    :   m_digits(new int32_t[src.m_digitsarr_size]),
         m_digits_size(src.m_digits_size),
         m_digitsarr_size(src.m_digitsarr_size),
         m_negative(src.m_negative)
@@ -19,29 +25,16 @@ LargeInteger::LargeInteger(const LargeInteger & src)
     memcpy(m_digits, src.m_digits, sizeof(*m_digits) * m_digitsarr_size);
 }
 
-LargeInteger::LargeInteger(int src)
-    :   m_digits(new int[LV_INTSIZE]),
+LargeInteger::LargeInteger(int32_t src)
+    :   m_digits(new int32_t[1]),
         m_digits_size(0),
-        m_digitsarr_size(LV_INTSIZE),
+        m_digitsarr_size(1),
         m_negative(src < 0)
-{
+{    
     if (src < 0)
         src = -src;
-    int * it = m_digits;
-    int * it_end = m_digits + m_digitsarr_size;
-    while (src)
-    {
-        *it = src % LV_BASE;
 
-        src /= LV_BASE;
-        ++it;
-    }
-    while (*it != *it_end)
-    {
-        *it = 0;
-        ++it;
-    }
-
+    *m_digits = src;
     update_size();
 }
 
@@ -105,6 +98,25 @@ void LargeInteger::update_size()
     m_negative = false;
 }
 
+void LargeInteger::sdiv(int32_t d, LargeInteger & q, int32_t & r)
+{
+    m_negative = (m_negative != (d < 0));
+    int32_t rm = 0;
+    q = 0;
+    q.ensure_size(m_digits_size);
+
+    for (int i = m_digits_size - 1; i >= 0; --i)
+    {
+        int64_t tmp = static_cast<int64_t>(rm) * BASE + static_cast<int64_t>(m_digits[i]);
+        q.m_digits[i] = static_cast<int32_t>(tmp / d);
+        rm = tmp - q.m_digits[i] * d;
+    }
+
+    r = rm;
+
+    q.update_size();
+}
+
 LargeInteger & LargeInteger::operator += (const LargeInteger & rhs)
 {
     if (rhs.m_negative != m_negative)
@@ -119,15 +131,17 @@ LargeInteger & LargeInteger::operator += (const LargeInteger & rhs)
                          m_digits_size + 1;
     ensure_size(size_needed);
 
-    int carry   = 0;
+    int32_t carry = 0;
     size_t current_digit = 0;
 
     while (current_digit < rhs.m_digits_size)
     {
-        m_digits[current_digit] += rhs.m_digits[current_digit] + carry;
-        if (m_digits[current_digit] >= LV_BASE)
+        int64_t tmp = static_cast<int64_t>(m_digits[current_digit]) +
+                      static_cast<int64_t>(rhs.m_digits[current_digit]) +
+                      carry;
+        if (tmp >= BASE)
         {
-            m_digits[current_digit] -= LV_BASE;
+            tmp -= BASE;
             carry = 1;
         }
         else
@@ -135,14 +149,15 @@ LargeInteger & LargeInteger::operator += (const LargeInteger & rhs)
             carry = 0;
         }
 
+        m_digits[current_digit] = static_cast<int32_t>(tmp);
         ++current_digit;
     }
     while (carry != 0)
     {
         ++m_digits[current_digit];
-        if (m_digits[current_digit] >= LV_BASE)
+        if (m_digits[current_digit] < 0) // if we got integer overflow
         {
-            m_digits[current_digit] -= LV_BASE;
+            m_digits[current_digit] = 0;
             carry = 1;
         }
         else
@@ -171,21 +186,26 @@ LargeInteger & LargeInteger::operator -= (const LargeInteger & rhs)
 
     ensure_size(size_needed);
 
-    int carry = 0;
+    int32_t carry = 0;
     size_t current_digit = 0;
 
     while (current_digit < rhs.m_digits_size)
     {
-        m_digits[current_digit] -= rhs.m_digits[current_digit] - carry;
-        if (m_digits[current_digit] < 0)
+        int64_t tmp = static_cast<int64_t>(m_digits[current_digit]) -
+                      static_cast<int64_t>(rhs.m_digits[current_digit]) +
+                      carry;        
+
+        if (tmp < 0)
         {
-            m_digits[current_digit] += LV_BASE;
+            tmp += BASE;
             carry = -1;
         }
         else
         {
             carry = 0;
         }
+
+        m_digits[current_digit] = static_cast<int32_t>(tmp);
 
         ++current_digit;
     }
@@ -195,7 +215,7 @@ LargeInteger & LargeInteger::operator -= (const LargeInteger & rhs)
         --m_digits[current_digit];
         if (m_digits[current_digit] < 0)
         {
-            m_digits[current_digit] += LV_BASE;
+            m_digits[current_digit] = std::numeric_limits<int32_t>::max();
             carry = -1;
         }
         else
@@ -208,9 +228,15 @@ LargeInteger & LargeInteger::operator -= (const LargeInteger & rhs)
 
     if (carry)
     {
-        m_digits[0] = LV_BASE - m_digits[0];
+        int64_t tmp = BASE - static_cast<int64_t>(m_digits[0]);
+        m_digits[0] = static_cast<int32_t>(tmp);
         for (current_digit = 1; current_digit < size_needed; ++current_digit)
-            m_digits[current_digit] = LV_BASE - m_digits[current_digit] - 1;
+        {
+            int64_t tmp = BASE -
+                          static_cast<int64_t>(m_digits[current_digit]) -
+                          1;
+            m_digits[current_digit] = static_cast<int32_t>(tmp);
+        }
         m_negative = !m_negative;
     }
 
@@ -229,7 +255,7 @@ LargeInteger & LargeInteger::operator *= (const LargeInteger & rhs)
         return *this;
     }
 
-    int * new_digits = new int[size_needed];
+    int32_t * new_digits = new int[size_needed];
     for (size_t i = 0; i != size_needed; ++i)
     {
         new_digits[i] = 0;
@@ -237,17 +263,17 @@ LargeInteger & LargeInteger::operator *= (const LargeInteger & rhs)
 
     for (size_t i = 0; i != m_digits_size; ++i)
     {
-        int carry  = 0;
-        int carry2 = 0;
+        int32_t carry  = 0;
+        int32_t carry2 = 0;
         for (size_t j = 0; j != rhs.m_digits_size; ++j)
         {
-            int tmp = m_digits[i] * rhs.m_digits[j] + carry;
-            carry = tmp / LV_BASE;
-            new_digits[i + j] += (tmp % LV_BASE) + carry2;
+            int64_t tmp = static_cast<int64_t>(m_digits[i]) * static_cast<int64_t>(rhs.m_digits[j]) + carry;
+            carry = tmp / BASE;
+            new_digits[i + j] += (tmp % BASE) + carry2;
 
-            if (new_digits[i + j] >= LV_BASE)
+            if (new_digits[i + j] < 0) // overflow
             {
-                new_digits[i + j] -= LV_BASE;
+                new_digits[i + j] = 0;
                 carry2 = 1;
             }
             else
@@ -260,10 +286,10 @@ LargeInteger & LargeInteger::operator *= (const LargeInteger & rhs)
         size_t j = rhs.m_digits_size;
         while (carry)
         {
-            new_digits[i + j] += carry;
+            int64_t tmp = new_digits[i + j] + carry;
 
-            carry = new_digits[i + j] / LV_BASE;
-            new_digits[i + j] %= LV_BASE;
+            carry =  tmp / BASE;
+            new_digits[i + j] = tmp % BASE;
         }
     }
 
@@ -285,58 +311,33 @@ LargeInteger LargeInteger::operator - ()
 
 void LargeInteger::from_string(const std::string & str)
 {
-    m_negative = (str[0] == '-');
     size_t str_length = str.length();
+    (*this) = 0;
 
-    size_t digits_required = str_length / LV_DIGITCHARS;
-    if (str_length % LV_DIGITCHARS)
-        ++digits_required;
-
+    size_t digits_required = str_length / (DIGIT_DECIMAL_SIZE - 1) + 1;
     ensure_size(digits_required);
 
-    int digit   = 0;
-    int ten_pow = 1;
-    size_t chars_read = 0;
-    int * value_ptr = m_digits;
+    int32_t   digit   = 0;
 
-    std::string::const_reverse_iterator rit = str.rbegin();
-    std::string::const_reverse_iterator rend = str.rend();
-    if (m_negative)
-        --rend;
-
-    while (rit != rend)
+    for (size_t i = 0; i < str.length(); ++i)
     {
-        digit += ten_pow *((*rit) - '0');
-        ten_pow *= 10;
-
-        ++chars_read;
-        if (chars_read == LV_DIGITCHARS)
-        {
-            *value_ptr = digit;
-
-            digit = 0;
-            ten_pow = 1;
-            chars_read = 0;
-
-            ++value_ptr;
-        }
-
-        ++rit;
-    }
-    if (chars_read)
-    {
-        *value_ptr = digit;
+        if (str[i] == '-')
+            continue;
+        digit = str[i] - '0';
+        (*this) *= 10;
+        (*this) += digit;
     }
 
+    m_negative = (str[0] == '-');
     update_size();
 }
 
 std::string LargeInteger::to_string() const
 {
-    if (m_digits_size == 0)
-        return "0";
+    if (m_digits_size == 0)        
+        return std::string("0");
 
-    size_t str_length = m_digits_size * LV_DIGITCHARS + 1;
+    size_t str_length = m_digits_size * DIGIT_DECIMAL_SIZE + 2;
 
     if (m_negative)
         ++str_length;
@@ -346,34 +347,24 @@ std::string LargeInteger::to_string() const
     *str_it = '\0';
     --str_it;
 
-    for (size_t i = 0; i < m_digits_size; ++i)
+    LargeInteger tmp(*this);
+    while (tmp != 0)
     {
-        int val = m_digits[i];
-        for (size_t j = 0; j < LV_DIGITCHARS; ++j)
-        {
-            int digit = val % 10;
-            val /= 10;
+        LargeInteger q;
+        int32_t digit;
 
-            *str_it = digit + '0';
-
-            --str_it;
-        }
-    }
-
-    str_it = str;
-    if (m_negative)
-        ++str_it;
-
-    while (*str_it == '0')
-        ++str_it;
-
-    if (m_negative)
-    {
+        tmp.sdiv(10, q, digit);
+        tmp = q;
+        *str_it = digit + '0';
         --str_it;
+    }
+    if (m_negative)
+    {        
         *str_it = '-';
+        --str_it;
     }
 
-    std::string res_str(str_it);
+    std::string res_str(++str_it);
     delete [] str;
 
     return res_str;
