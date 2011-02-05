@@ -2,17 +2,14 @@
 #define LARGEINT_H
 
 #include <string>
-
-const int LV_BASE = 10000;
-const size_t LV_DIGITCHARS = 4;
-const size_t LV_INTSIZE = 3;
+#include <cstdint>
 
 class LargeInteger
 {
 public:
     explicit LargeInteger();
     LargeInteger(const LargeInteger & src);
-    LargeInteger(int src);
+    LargeInteger(int32_t src);
     ~LargeInteger();
 
     LargeInteger & operator = (const LargeInteger & val);
@@ -20,6 +17,7 @@ public:
     LargeInteger & operator += (const LargeInteger & rhs);
     LargeInteger & operator -= (const LargeInteger & rhs);
     LargeInteger & operator *= (const LargeInteger & rhs);
+    LargeInteger & operator /= (int32_t rhs);
 
     LargeInteger operator - ();
 
@@ -30,13 +28,14 @@ public:
     friend bool operator == (const LargeInteger & lhs, const LargeInteger & rhs);
     friend bool operator < (const LargeInteger & lhs, const LargeInteger & rhs);
 private:
-    int *   m_digits;
-    size_t  m_digits_size;
-    size_t  m_digitsarr_size;
-    bool    m_negative;
+    int32_t *   m_digits;
+    size_t      m_digits_size;
+    size_t      m_digitsarr_size;
+    bool        m_negative;
 
     void    ensure_size(size_t size);
     void    update_size();
+    void    sdiv(int d, LargeInteger & q, int & r);
 };
 
 

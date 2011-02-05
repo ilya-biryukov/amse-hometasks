@@ -3,7 +3,7 @@
 #include "utils.h"
 #include "largeint.h"
 
-LargeInteger eval_expr(LargeInteger & n1, LargeInteger & n2, char op)
+LargeInteger eval_expr(const LargeInteger & n1, const LargeInteger & n2, char op)
 {
     if (op == '+')
         return n1 + n2;
