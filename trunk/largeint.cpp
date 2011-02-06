@@ -1,6 +1,7 @@
 #include <cstring>
 #include <iostream>
 #include <cstdint>
+#include <cstdio>
 #include <limits>
 #include <algorithm>
 #include "largeint.h"
@@ -12,39 +13,46 @@ LargeInteger::LargeInteger()
     :   m_digits(0),
         m_digits_size(0),
         m_digitsarr_size(0),
-        m_negative(false)
+        m_negative(false),
+        m_heap_allocated(false)
 {
 }
 
 LargeInteger::LargeInteger(const LargeInteger & src)
-    :   m_digits(new int32_t[src.m_digitsarr_size]),
+    :   m_digits(0),
         m_digits_size(src.m_digits_size),
         m_digitsarr_size(src.m_digitsarr_size),
-        m_negative(src.m_negative)
+        m_negative(src.m_negative),
+        m_heap_allocated(src.m_heap_allocated)
 {
-    memcpy(m_digits, src.m_digits, sizeof(*m_digits) * m_digitsarr_size);
+    if (m_heap_allocated)
+    {
+        m_digits = new int32_t[m_digitsarr_size];
+        memcpy(m_digits, src.m_digits, sizeof(*m_digits) * m_digitsarr_size);
+    }
+    else
+    {
+        m_digits = src.m_digits;
+    }
 }
 
 LargeInteger::LargeInteger(int32_t src)
-    :   m_digits(new int32_t[1]),
+    :   m_digits(reinterpret_cast<int32_t *>(src)),
         m_digits_size(0),
-        m_digitsarr_size(1),
-        m_negative(src < 0)
-{    
-    if (src < 0)
-        src = -src;
-
-    *m_digits = src;
-    update_size();
+        m_digitsarr_size(0),
+        m_negative(src < 0),
+        m_heap_allocated(false)
+{
 }
 
 LargeInteger::~LargeInteger()
 {
-    delete [] m_digits;
+    if (m_heap_allocated)
+        delete [] m_digits;
 }
 
 
-LargeInteger & LargeInteger::operator =(const LargeInteger & val)
+LargeInteger & LargeInteger::operator = (const LargeInteger & val)
 {
     if (this != &val)
         LargeInteger(val).swap(*this);
@@ -63,6 +71,8 @@ void LargeInteger::swap(LargeInteger & val)
 
 void LargeInteger::ensure_size(size_t size)
 {
+    if (!m_heap_allocated)
+        allocate_on_heap(reinterpret_cast<int32_t>(m_digits));
     if (m_digitsarr_size >= size)
         return;
     int * new_value = new int[size];
@@ -77,7 +87,7 @@ void LargeInteger::ensure_size(size_t size)
     m_digitsarr_size = size;
 }
 
-void LargeInteger::update_size()
+void LargeInteger::update_size() const
 {
     for (int * p = m_digits + (m_digitsarr_size - 1); p != m_digits - 1; --p)
     {
@@ -102,23 +112,53 @@ void LargeInteger::sdiv(int32_t d, LargeInteger & q, int32_t & r)
 {
     m_negative = (m_negative != (d < 0));
     int32_t rm = 0;
-    q = 0;
-    q.ensure_size(m_digits_size);
 
-    for (int i = m_digits_size - 1; i >= 0; --i)
+    if (m_heap_allocated)
     {
-        int64_t tmp = static_cast<int64_t>(rm) * BASE + static_cast<int64_t>(m_digits[i]);
-        q.m_digits[i] = static_cast<int32_t>(tmp / d);
-        rm = tmp - q.m_digits[i] * d;
+        q = 0;
+        q.ensure_size(m_digits_size);
+
+        for (int i = m_digits_size - 1; i >= 0; --i)
+        {
+            int64_t tmp = static_cast<int64_t>(rm) * BASE + static_cast<int64_t>(m_digits[i]);
+            q.m_digits[i] = static_cast<int32_t>(tmp / d);
+            rm = tmp - q.m_digits[i] * d;
+        }
+
+        r = rm;
+
+        q.update_size();
     }
-
-    r = rm;
-
-    q.update_size();
+    else
+    {
+        q = reinterpret_cast<int32_t>(m_digits) / d;
+        rm = reinterpret_cast<int32_t>(m_digits) % d;
+    }
 }
 
 LargeInteger & LargeInteger::operator += (const LargeInteger & rhs)
 {
+    if (!m_heap_allocated && !rhs.m_heap_allocated)
+    {
+        int64_t res;
+        res = static_cast<int64_t>(reinterpret_cast<int32_t>(m_digits)) +
+              static_cast<int64_t>(reinterpret_cast<int32_t>(rhs.m_digits));
+        if (res >= BASE)
+            allocate_on_heap(res);
+        else
+        {
+            m_digits = reinterpret_cast<int32_t *>(static_cast<int32_t>(res));
+            m_negative = res < 0;
+        }
+        return *this;
+    }
+
+
+    if (!m_heap_allocated)
+        allocate_on_heap(static_cast<int64_t>(reinterpret_cast<int32_t>(m_digits)));
+    if (!rhs.m_heap_allocated)
+        rhs.allocate_on_heap(static_cast<int64_t>(reinterpret_cast<int32_t>(rhs.m_digits)));
+
     if (rhs.m_negative != m_negative)
     {
         m_negative = !m_negative;
@@ -173,6 +213,27 @@ LargeInteger & LargeInteger::operator += (const LargeInteger & rhs)
 
 LargeInteger & LargeInteger::operator -= (const LargeInteger & rhs)
 {
+    if (!m_heap_allocated && !rhs.m_heap_allocated)
+    {
+        int64_t res;
+        res = static_cast<int64_t>(reinterpret_cast<int32_t>(m_digits)) -
+              static_cast<int64_t>(reinterpret_cast<int32_t>(rhs.m_digits));
+        if (res < std::numeric_limits<int32_t>::min())
+            allocate_on_heap(res);
+        else
+        {
+            m_digits = reinterpret_cast<int32_t*>(static_cast<int32_t>(res));
+            m_negative = res < 0;
+        }
+        return *this;
+    }
+
+
+    if (!m_heap_allocated)
+        allocate_on_heap(static_cast<int64_t>(reinterpret_cast<int32_t>(m_digits)));
+    if (!rhs.m_heap_allocated)
+        rhs.allocate_on_heap(static_cast<int64_t>(reinterpret_cast<int32_t>(rhs.m_digits)));
+
     if (m_negative != rhs.m_negative)
     {
         m_negative = !m_negative;
@@ -193,7 +254,7 @@ LargeInteger & LargeInteger::operator -= (const LargeInteger & rhs)
     {
         int64_t tmp = static_cast<int64_t>(m_digits[current_digit]) -
                       static_cast<int64_t>(rhs.m_digits[current_digit]) +
-                      carry;        
+                      carry;
 
         if (tmp < 0)
         {
@@ -247,6 +308,26 @@ LargeInteger & LargeInteger::operator -= (const LargeInteger & rhs)
 
 LargeInteger & LargeInteger::operator *= (const LargeInteger & rhs)
 {
+    if (!m_heap_allocated && !rhs.m_heap_allocated)
+    {
+        int64_t res;
+        res = static_cast<int64_t>(reinterpret_cast<int32_t>(m_digits)) *
+              static_cast<int64_t>(reinterpret_cast<int32_t>(rhs.m_digits));
+        if (res >= BASE || res < std::numeric_limits<int32_t>::min())
+            allocate_on_heap(res);
+        else
+        {
+            m_digits = reinterpret_cast<int32_t *>(static_cast<int32_t>(res));
+            m_negative = res < 0;
+        }
+        return *this;
+    }
+
+    if (!m_heap_allocated)
+        allocate_on_heap(static_cast<int64_t>(reinterpret_cast<int32_t>(m_digits)));
+    if (!rhs.m_heap_allocated)
+        rhs.allocate_on_heap(static_cast<int64_t>(reinterpret_cast<int32_t>(rhs.m_digits)));
+
     m_negative = (m_negative != rhs.m_negative);
 
     size_t size_needed = rhs.m_digits_size + m_digits_size;
@@ -305,6 +386,8 @@ LargeInteger LargeInteger::operator - ()
 {
     LargeInteger r(*this);
     r.m_negative = !m_negative;
+    if (!m_heap_allocated)
+        m_digits = reinterpret_cast<int32_t *>(- reinterpret_cast<int32_t>(m_digits));
 
     return r;
 }
@@ -334,7 +417,16 @@ void LargeInteger::from_string(const std::string & str)
 
 std::string LargeInteger::to_string() const
 {
-    if (m_digits_size == 0)        
+    if (!m_heap_allocated)
+    {
+        char * str = new char[12];
+        sprintf(str, "%d", reinterpret_cast<int32_t>(m_digits));
+        std::string tmp(str);
+        delete[] str;
+        return tmp;
+    }
+
+    if (m_digits_size == 0)
         return std::string("0");
 
     size_t str_length = m_digits_size * DIGIT_DECIMAL_SIZE + 2;
@@ -359,7 +451,7 @@ std::string LargeInteger::to_string() const
         --str_it;
     }
     if (m_negative)
-    {        
+    {
         *str_it = '-';
         --str_it;
     }
@@ -370,6 +462,24 @@ std::string LargeInteger::to_string() const
     return res_str;
 }
 
+void LargeInteger::allocate_on_heap(int64_t value) const
+{
+    if (m_heap_allocated)
+        return;
+
+    m_heap_allocated = true;
+    m_digits = new int32_t[2];
+    m_digits_size = 2;
+    m_digitsarr_size = 2;
+    m_negative = value < 0;
+    m_digits[0] = value % BASE;
+    m_digits[1] = (value / BASE) % BASE;
+    if (m_digits[0] < 0)
+        m_digits[0] = -m_digits[0];
+    if (m_digits[1] < 0)
+        m_digits[1] = -m_digits[1];
+    update_size();
+}
 LargeInteger operator + (const LargeInteger & lhs, const LargeInteger & rhs)
 {
     return LargeInteger(lhs) += rhs;
@@ -387,6 +497,15 @@ LargeInteger operator * (const LargeInteger & lhs, const LargeInteger & rhs)
 
 bool operator == (const LargeInteger & lhs, const LargeInteger & rhs)
 {
+    if (!lhs.m_heap_allocated && !rhs.m_heap_allocated)
+    {
+        return lhs.m_digits == rhs.m_digits;
+    }
+    if (!lhs.m_heap_allocated)
+        lhs.allocate_on_heap(static_cast<int64_t>(reinterpret_cast<int32_t>(lhs.m_digits)));
+    if (!rhs.m_heap_allocated)
+        rhs.allocate_on_heap(static_cast<int64_t>(reinterpret_cast<int32_t>(rhs.m_digits)));
+
     if (lhs.m_digits_size != rhs.m_digits_size || lhs.m_negative != rhs.m_negative)
         return false;
 
@@ -413,6 +532,15 @@ bool operator != (const LargeInteger & lhs, const LargeInteger & rhs)
 
 bool operator < (const LargeInteger & lhs, const LargeInteger & rhs)
 {
+    if (!lhs.m_heap_allocated && !rhs.m_heap_allocated)
+    {
+        return reinterpret_cast<int32_t>(lhs.m_digits) < reinterpret_cast<int32_t>(rhs.m_digits);
+    }
+    if (!lhs.m_heap_allocated)
+        lhs.allocate_on_heap(static_cast<int64_t>(reinterpret_cast<int32_t>(lhs.m_digits)));
+    if (!rhs.m_heap_allocated)
+        rhs.allocate_on_heap(static_cast<int64_t>(reinterpret_cast<int32_t>(rhs.m_digits)));
+
     if (lhs.m_negative && !rhs.m_negative)
         return true;
     if (rhs.m_negative && !lhs.m_negative)
@@ -481,3 +609,4 @@ std::istream & operator >> (std::istream & lhs, LargeInteger & rhs)
     rhs.from_string(str);
     return lhs;
 }
+

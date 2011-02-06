@@ -28,14 +28,16 @@ public:
     friend bool operator == (const LargeInteger & lhs, const LargeInteger & rhs);
     friend bool operator < (const LargeInteger & lhs, const LargeInteger & rhs);
 private:
-    int32_t *   m_digits;
-    size_t      m_digits_size;
-    size_t      m_digitsarr_size;
-    bool        m_negative;
+    mutable int32_t *   m_digits;
+    mutable size_t      m_digits_size;
+    mutable size_t      m_digitsarr_size;
+    mutable bool        m_negative;
+    mutable bool        m_heap_allocated;
 
     void    ensure_size(size_t size);
-    void    update_size();
+    void    update_size() const;
     void    sdiv(int d, LargeInteger & q, int & r);
+    void    allocate_on_heap(int64_t value) const;
 };
 
 

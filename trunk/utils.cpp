@@ -1,3 +1,4 @@
+
 #include <iostream>
 #include <fstream>
 #include "utils.h"
@@ -26,8 +27,8 @@ void proccess_files(const std::string & input_filename,
 
     while (line_count)
     {
-	LargeInteger n1;
-	LargeInteger n2;
+        LargeInteger n1;
+        LargeInteger n2;
         char   op;
 
         input_stream >> n1 >> op >> n2;
