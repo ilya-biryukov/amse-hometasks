@@ -4,13 +4,34 @@
 #include <string>
 #include <cstdint>
 
+class DigitContainer
+{
+public:
+    DigitContainer();
+    DigitContainer(const DigitContainer & src);
+    ~DigitContainer();
+
+    DigitContainer & operator = (const DigitContainer & val);
+
+    size_t  get_size() const;
+    int32_t get_digit(size_t index) const;
+    void    set_digit(size_t index, int32_t value);
+private:
+    void swap(DigitContainer & val);
+    void resize_digits(size_t new_size);
+    void grow(size_t index_needed);
+
+    int32_t * m_digits;
+    size_t    m_digits_size;
+    size_t    m_actual_size;
+};
+
 class LargeInteger
 {
 public:
     explicit LargeInteger();
     LargeInteger(const LargeInteger & src);
     LargeInteger(int32_t src);
-    ~LargeInteger();
 
     LargeInteger & operator = (const LargeInteger & val);
 
@@ -28,16 +49,10 @@ public:
     friend bool operator == (const LargeInteger & lhs, const LargeInteger & rhs);
     friend bool operator < (const LargeInteger & lhs, const LargeInteger & rhs);
 private:
-    mutable int32_t *   m_digits;
-    mutable size_t      m_digits_size;
-    mutable size_t      m_digitsarr_size;
-    mutable bool        m_negative;
-    mutable bool        m_heap_allocated;
+    DigitContainer m_digits;
+    bool           m_negative;
 
-    void    ensure_size(size_t size);
-    void    update_size() const;
-    void    sdiv(int d, LargeInteger & q, int & r);
-    void    allocate_on_heap(int64_t value) const;
+    void sdiv(int d, LargeInteger & q, int & r);
 };
 
 
