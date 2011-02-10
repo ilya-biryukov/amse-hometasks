@@ -216,9 +216,9 @@ DigitProxy DigitContainer::operator [](size_t i)
     return DigitProxy(*this, i);
 }
 
-const DigitProxy DigitContainer::operator [](size_t i) const
+int32_t DigitContainer::operator [](size_t i) const
 {
-    return DigitProxy(const_cast<DigitContainer &>(*this), i);
+    return get_digit(i);
 }
 
 /* LargeInteger */
@@ -542,7 +542,6 @@ bool operator == (const LargeInteger & lhs, const LargeInteger & rhs)
     size_t rhs_size = rhs.m_digits.get_size();
     if (lhs_size != rhs_size || lhs.m_negative != rhs.m_negative)
         return false;
-
 
     for (size_t i = 0; i < lhs_size; ++i)
     {
