@@ -8,10 +8,74 @@
 const int64_t BASE = static_cast<int64_t>(std::numeric_limits<int32_t>::max()) + 1;
 const size_t DIGIT_DECIMAL_SIZE = 10;
 
+/* Digit Proxy */
+
+DigitProxy::DigitProxy(DigitContainer & container, size_t index)
+    : m_container(container),
+      m_index(index)
+{
+}
+
+DigitProxy::DigitProxy(const DigitProxy & src)
+    : m_container(src.m_container),
+      m_index(src.m_index)
+{
+}
+
+int32_t DigitProxy::operator = (int32_t rhs)
+{
+    m_container.set_digit(m_index, rhs);
+    return rhs;
+}
+
+DigitProxy::operator int32_t() const
+{
+    return m_container.get_digit(m_index);
+}
+
+int32_t DigitProxy::operator ++()
+{
+    int32_t v = m_container.get_digit(m_index);
+    m_container.set_digit(m_index, ++v);
+    return v;
+}
+
+int32_t DigitProxy::operator ++(int)
+{
+    int32_t v = m_container.get_digit(m_index);
+    m_container.set_digit(m_index, v + 1);
+    return v;
+}
+
+int32_t DigitProxy::operator --()
+{
+    int32_t v = m_container.get_digit(m_index);
+    m_container.set_digit(m_index, --v);
+    return --v;
+}
+
+int32_t DigitProxy::operator --(int)
+{
+    int32_t v = m_container.get_digit(m_index);
+    m_container.set_digit(m_index, v - 1);
+    return v;
+}
+
+/* DigitContainer */
+
 DigitContainer::DigitContainer()
     : m_digits(0),
       m_digits_size(0)
 {
+}
+
+void DigitContainer::optimize()
+{
+    size_t actual_size = get_size();
+    if (actual_size < m_digits_size)
+    {
+        resize_digits(actual_size);
+    }
 }
 
 DigitContainer::DigitContainer(const DigitContainer & src)
@@ -147,6 +211,18 @@ DigitContainer & DigitContainer::operator = (const DigitContainer & rhs)
     return *this;
 }
 
+DigitProxy DigitContainer::operator [](size_t i)
+{
+    return DigitProxy(*this, i);
+}
+
+const DigitProxy DigitContainer::operator [](size_t i) const
+{
+    return DigitProxy(const_cast<DigitContainer &>(*this), i);
+}
+
+/* LargeInteger */
+
 LargeInteger::LargeInteger()
     : m_negative(false)
 {
@@ -163,7 +239,7 @@ LargeInteger::LargeInteger(int32_t src)
 {
     if (src < 0)
         src = -src;
-    m_digits.set_digit(0, src);
+    m_digits[0] = src;
 }
 
 LargeInteger & LargeInteger::operator = (const LargeInteger & val)
@@ -189,9 +265,9 @@ void LargeInteger::sdiv(int32_t d, LargeInteger & q, int32_t & r)
 
     for (int i = m_digits.get_size() - 1; i >= 0; --i)
     {
-        int64_t tmp = static_cast<int64_t>(rm) * BASE + static_cast<int64_t>(m_digits.get_digit(i));
-        q.m_digits.set_digit(i, static_cast<int32_t>(tmp / d));
-        rm = tmp - q.m_digits.get_digit(i) * d;
+        int64_t tmp = static_cast<int64_t>(rm) * BASE + static_cast<int64_t>(m_digits[i]);
+        q.m_digits[i] = static_cast<int32_t>(tmp / d);
+        rm = tmp - q.m_digits[i] * d;
     }
 
     r = rm;
@@ -212,8 +288,8 @@ LargeInteger & LargeInteger::operator += (const LargeInteger & rhs)
     size_t rhs_size = rhs.m_digits.get_size();
     while (current_digit < rhs_size)
     {
-        int64_t tmp = static_cast<int64_t>(m_digits.get_digit(current_digit)) +
-                      static_cast<int64_t>(rhs.m_digits.get_digit(current_digit)) +
+        int64_t tmp = static_cast<int64_t>(m_digits[current_digit]) +
+                      static_cast<int64_t>(rhs.m_digits[current_digit]) +
                       carry;
         if (tmp >= BASE)
         {
@@ -225,26 +301,23 @@ LargeInteger & LargeInteger::operator += (const LargeInteger & rhs)
             carry = 0;
         }
 
-        m_digits.set_digit(current_digit, static_cast<int32_t>(tmp));
+        m_digits[current_digit] = static_cast<int32_t>(tmp);
         ++current_digit;
     }
 
     while (carry != 0)
     {
-        int32_t digit = m_digits.get_digit(current_digit);
-        ++digit;
-        if (digit < 0) // if we got integer overflow
+        if (++m_digits[current_digit] < 0) // if we got integer overflow
         {
-            digit = 0;
+            m_digits[current_digit] = 0;
             carry = 1;
         }
         else
         {
             carry = 0;
         }
-        m_digits.set_digit(current_digit, digit);
         ++current_digit;
-    }
+    }        
 
     return *this;
 }
@@ -271,8 +344,8 @@ LargeInteger & LargeInteger::operator -= (const LargeInteger & rhs)
 
     while (current_digit < rhs.m_digits.get_size())
     {
-        int64_t tmp = static_cast<int64_t>(m_digits.get_digit(current_digit)) -
-                      static_cast<int64_t>(rhs.m_digits.get_digit(current_digit)) +
+        int64_t tmp = static_cast<int64_t>(m_digits[current_digit]) -
+                      static_cast<int64_t>(rhs.m_digits[current_digit]) +
                       carry;
 
         if (tmp < 0)
@@ -285,18 +358,18 @@ LargeInteger & LargeInteger::operator -= (const LargeInteger & rhs)
             carry = 0;
         }
 
-        m_digits.set_digit(current_digit, static_cast<int32_t>(tmp));
+        m_digits[current_digit] = static_cast<int32_t>(tmp);
 
         ++current_digit;
     }
 
     while (carry != 0 && current_digit < size_needed)
     {
-        int32_t digit = m_digits.get_digit(current_digit);
-        --digit;
-        if (m_digits.get_digit(current_digit) < 0)
+//        int32_t digit = m_digits[current_digit];
+//        --digit;
+        if (--m_digits[current_digit] < 0)
         {
-            digit = std::numeric_limits<int32_t>::max();
+            m_digits[current_digit] = std::numeric_limits<int32_t>::max();
             carry = -1;
         }
         else
@@ -304,22 +377,23 @@ LargeInteger & LargeInteger::operator -= (const LargeInteger & rhs)
             carry = 0;
         }
 
-        m_digits.set_digit(current_digit, digit);
+//        m_digits[current_digit] = digit;
         ++current_digit;
     }
 
     if (carry)
     {
-        int64_t tmp = BASE - static_cast<int64_t>(m_digits.get_digit(0));
-        m_digits.set_digit(0, static_cast<int32_t>(tmp));
+        int64_t tmp = BASE - static_cast<int64_t>(m_digits[0]);
+        m_digits[0] = static_cast<int32_t>(tmp);
         for (current_digit = 1; current_digit < size_needed; ++current_digit)
         {
             int64_t tmp = BASE -
-                          static_cast<int64_t>(m_digits.get_digit(current_digit)) -
+                          static_cast<int64_t>(m_digits[current_digit]) -
                           1;
-            m_digits.set_digit(current_digit, static_cast<int32_t>(tmp));
+            m_digits[current_digit] = static_cast<int32_t>(tmp);
         }
         m_negative = !m_negative;
+        m_digits.optimize();
     }
 
     return *this;
@@ -346,10 +420,10 @@ LargeInteger & LargeInteger::operator *= (const LargeInteger & rhs)
 
         for (size_t j = 0; j != rhs_size; ++j)
         {
-            int64_t tmp = static_cast<int64_t>(m_digits.get_digit(i)) * static_cast<int64_t>(rhs.m_digits.get_digit(j)) + carry;
+            int64_t tmp = static_cast<int64_t>(m_digits[i]) * static_cast<int64_t>(rhs.m_digits[j]) + carry;
             carry = tmp / BASE;
 
-            int32_t digit = new_digits.get_digit(i + j) + (tmp % BASE) + carry2;
+            int32_t digit = new_digits[i + j] + (tmp % BASE) + carry2;
 
             if (digit < 0) // overflow
             {
@@ -361,17 +435,17 @@ LargeInteger & LargeInteger::operator *= (const LargeInteger & rhs)
                 carry2 = 0;
             }
 
-            new_digits.set_digit(i + j, digit);
+            new_digits[i + j] = digit;
         }
 
         carry += carry2;
         size_t j = rhs_size;
         while (carry)
         {
-            int64_t tmp = new_digits.get_digit(i + j) + carry;
+            int64_t tmp = new_digits[i + j] + carry;
 
             carry =  tmp / BASE;
-            new_digits.set_digit(i + j, tmp % BASE);
+            new_digits[i + j] = tmp % BASE;
         }
     }
 
@@ -379,6 +453,7 @@ LargeInteger & LargeInteger::operator *= (const LargeInteger & rhs)
 
     if (m_negative && m_digits.get_size() == 0)
         m_negative = false;
+    m_digits.optimize();
     return *this;
 }
 
@@ -471,7 +546,7 @@ bool operator == (const LargeInteger & lhs, const LargeInteger & rhs)
 
     for (size_t i = 0; i < lhs_size; ++i)
     {
-        if (lhs.m_digits.get_digit(i) != rhs.m_digits.get_digit(i))
+        if (lhs.m_digits[i] != rhs.m_digits[i])
             return false;
     }
 
@@ -510,10 +585,10 @@ bool operator < (const LargeInteger & lhs, const LargeInteger & rhs)
     {
         for (size_t i = 0; i < lhs_size; ++i)
         {
-            if (lhs.m_digits.get_digit(i) != rhs.m_digits.get_digit(i))
+            if (lhs.m_digits[i] != rhs.m_digits[i])
             {
                 abs_equal = false;
-                abs_less = lhs.m_digits.get_digit(i) < rhs.m_digits.get_digit(i);
+                abs_less = lhs.m_digits[i] < rhs.m_digits[i];
                 break;
             }
         }
