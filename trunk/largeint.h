@@ -4,6 +4,27 @@
 #include <string>
 #include <cstdint>
 
+class DigitContainer;
+class DigitProxy;
+class LargeInteger;
+
+class DigitProxy
+{
+public:
+    DigitProxy(DigitContainer & container, size_t index);
+    DigitProxy(const DigitProxy & src);
+
+    int32_t operator = (int32_t rhs);
+    int32_t operator ++ ();
+    int32_t operator ++ (int);
+    int32_t operator -- ();
+    int32_t operator -- (int);
+    operator int32_t() const;
+private:
+    DigitContainer & m_container;
+    int32_t          m_index;
+};
+
 class DigitContainer
 {
 public:
@@ -11,11 +32,14 @@ public:
     DigitContainer(const DigitContainer & src);
     ~DigitContainer();
 
-    DigitContainer & operator = (const DigitContainer & val);
+    DigitContainer & operator = (const DigitContainer & val);    
+    DigitProxy       operator [](size_t i);
+    const DigitProxy operator [](size_t i) const;
 
     size_t  get_size() const;
     int32_t get_digit(size_t index) const;
     void    set_digit(size_t index, int32_t value);
+    void    optimize();
 private:
     void swap(DigitContainer & val);
     void resize_digits(size_t new_size);
