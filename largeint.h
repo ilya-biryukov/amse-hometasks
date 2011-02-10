@@ -34,7 +34,7 @@ public:
 
     DigitContainer & operator = (const DigitContainer & val);    
     DigitProxy       operator [](size_t i);
-    const DigitProxy operator [](size_t i) const;
+    int32_t          operator [](size_t i) const;
 
     size_t  get_size() const;
     int32_t get_digit(size_t index) const;
