@@ -1,11 +1,9 @@
 #include <iostream>
-#include <fstream>
-#include <cstring>
-#include "utils.h"
-#include "largeint.h"
+#include "singleton.h"
 
-int main(int argc, char ** argv)
+int main(int argc, char * argv[])
 {
-    proccess_files("input.txt", "output.txt");
+    Singleton & s = Singleton::instance();
+    std::cout << s.getTen() << std::endl;
+    return 0;
 }
-
