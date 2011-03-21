@@ -12,11 +12,11 @@ public:
         return 10;          
     }
 private:
-    inline Singleton()
-    {}   
-    inline Singleton(const Singleton & )
+    Singleton()
     {}
-    Singleton& operator = (const Singleton &)
-    {}
-
+    ~Singleton()
+    {};
+    
+    Singleton(const Singleton & );  
+    Singleton& operator = (const Singleton &);      
 };
