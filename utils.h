@@ -1,10 +1,18 @@
-#ifndef UTILS_H_INCLUDED
-#define UTILS_H_INCLUDED
 #include <string>
-class LargeInteger;
+#include <algorithm>
+#include <locale>
 
-LargeInteger eval_expr(const LargeInteger & n1, const LargeInteger & n2, char op);
-void proccess_files(const std::string & input_filename,
-                    const std::string & output_filename);
+#include <boost/bind.hpp>
 
-#endif // UTILS_H_INCLUDED
+/**
+ * @brief Transforms string to lower case.
+ * 
+ * @param str string to be lower cased
+ */
+inline void transform_to_lower(std::string & str)
+{
+  std::transform(str.begin(), 
+                 str.end(), 
+                 str.begin(), 
+                 boost::bind(&std::tolower<std::string::value_type>, _1, std::locale()));
+}
